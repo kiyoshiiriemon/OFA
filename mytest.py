@@ -1,4 +1,6 @@
+# How to run: PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python python3 vqatest.py *.jpg
 # code is from https://www.12-technology.com/2022/03/ofa-image-captioning-vqa-python.html
+
 import torch
 import sys
 import numpy as np
@@ -157,6 +159,8 @@ def apply_half(t):
 
 def image_qa(filename, instruction):
     image = Image.open(filename)
+    cvimage = np.array(image, dtype=np.uint8)
+    cvimage = cv2.cvtColor(cvimage, cv2.COLOR_RGB2BGR)
     for instruction in instruction_list:
         # Construct input sample & preprocess for GPU if cuda available
         sample = construct_sample(image, instruction)
@@ -173,7 +177,8 @@ def image_qa(filename, instruction):
             tokens5, bins5, imgs5 = decode_fn(hypos[0][4]["tokens"], task.tgt_dict, task.bpe, generator)
          
         # display result
-        image.show()
+        cv2.imshow('image', cvimage)
+        cv2.waitKey(1)
         print(f'Image {filename}, Instruction: {instruction}')
         print('OFA\'s Output1: {}, Probs: {}'.format(tokens1, hypos[0][0]["score"].exp().item()))
         print('OFA\'s Output2: {}, Probs: {}'.format(tokens2, hypos[0][1]["score"].exp().item()))
@@ -183,18 +188,9 @@ def image_qa(filename, instruction):
 
 if __name__ == '__main__':
     args = sys.argv
-    instruction_list = ["Do you see the letter 'a' in lower case?", \
-                        "Do you see the letter 'b' in lower case?", \
-                        "Do you see the letter 'c' in lower case?"]
-    instruction_list = ["What alphabet is written on the paper?"]
-    instruction_list = ["What alphabet is written on the label on the green box?", \
-                        "What alphabet is written on the label on the blue box?", \
-                        "Do you see a blue box?", \
-                        "Do you see a red box?"]
-    instruction_list = ["Where in the image do you find a green box?"]
-    instruction_list = ["Where in the image do you find a blue box?"]
+    instruction_list = ["What alphabet is written on the label on the green box?"]
 
     args.pop(0)
-    for file in args:
-        for instruction in instruction_list:
+    for instruction in instruction_list:
+        for file in args:
             image_qa(file, instruction)
