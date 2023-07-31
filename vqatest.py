@@ -10,10 +10,10 @@ from tasks.mm_tasks.refcoco import RefcocoTask
  
 from models.ofa import OFAModel
 from PIL import Image
- 
+import os
 import cv2
 import numpy
- 
+import csv 
 tasks.register_task('refcoco', RefcocoTask)
  
 # turn on cuda if GPU is available
@@ -157,7 +157,7 @@ def apply_half(t):
     return t
 
 
-def image_qa(filename, instruction):
+def image_qa(filename, instruction, flag, clearcsv, misscsv):
     image = Image.open(filename)
     cvimage = np.array(image, dtype=np.uint8)
     cvimage = cv2.cvtColor(cvimage, cv2.COLOR_RGB2BGR)
@@ -179,18 +179,50 @@ def image_qa(filename, instruction):
         # display result
         cv2.imshow('image', cvimage)
         cv2.waitKey(1)
-        print(f'Image {filename}, Instruction: {instruction}')
-        print('OFA\'s Output1: {}, Probs: {}'.format(tokens1, hypos[0][0]["score"].exp().item()))
-        print('OFA\'s Output2: {}, Probs: {}'.format(tokens2, hypos[0][1]["score"].exp().item()))
-        print('OFA\'s Output3: {}, Probs: {}'.format(tokens3, hypos[0][2]["score"].exp().item()))
-        print('OFA\'s Output4: {}, Probs: {}'.format(tokens4, hypos[0][3]["score"].exp().item()))
-        print('OFA\'s Output5: {}, Probs: {}'.format(tokens5, hypos[0][4]["score"].exp().item()))
+            #print(f'Image {filename}, Instruction: {instruction}')
+            #print('OFA\'s Output1: {}, Probs: {}'.format(tokens1, hypos[0][0]["score"].exp().item()))
+            #print('OFA\'s Output2: {}, Probs: {}'.format(tokens2, hypos[0][1]["score"].exp().item()))
+            #print('OFA\'s Output3: {}, Probs: {}'.format(tokens3, hypos[0][2]["score"].exp().item()))
+            #print('OFA\'s Output4: {}, Probs: {}'.format(tokens4, hypos[0][3]["score"].exp().item()))
+            #print('OFA\'s Output5: {}, Probs: {}'.format(tokens5, hypos[0][4]["score"].exp().item()))
+
+        print(instruction)
+        pred = list([tokens1, tokens2, tokens3, tokens4, tokens5])
+        for i in range(5):
+            if pred[i] == flag and hypos[0][i]["score"].exp().item() >= 0.5:
+                with open(clearcsv, "a", newline="") as f1:
+                    writer = csv.writer(f1)
+                    writer.writerow([str(instruction), str(filename), str(pred[i])])
+                return 1
+            else:
+                with open(misscsv, "a", newline="") as f2:
+                    writer = csv.writer(f2)
+                    writer.writerow([str(instruction), str(filename), str(pred[i])])
+                return 0
+
 
 if __name__ == '__main__':
     args = sys.argv
-    instruction_list = ["What alphabet is written on the label on the green box?"]
-
+    instruction_list = ["What alphabet is written on the label on the green box?", "What is the biggest alphabet?", "What is the biggest alphabet on the label on the green box?", "What is the biggest alphabet on the white label on the green box?", "What is the biggest alphabet on the label on the box?", "What is the biggest alphabet on the box?", "What is the biggest letter?", "What is the largest alphabet?", "What is the largest alphabet on the label on the green box?", "What is the largest alphabet on the white label on the green box?", "What is the largest alphabet on the label on the box?", "What is the largest alphabet on the box?", "What is the largest letter?", "What is written on the white label?", "Could you tell me the text on the label of the box?", "What does the label on the box say?", "What is the largest character on the label?", "Which character is the biggest on the label?"]
     args.pop(0)
+    flag = args.pop(-1)
+    score = 0
+    result_dir = "result/"+flag
+    csv1, csv2 = result_dir+"/clear.csv", result_dir+"/miss.csv"
+    
+    if os.path.exists(result_dir):
+        pass
+    else:
+        os.mkdir(result_dir)
+
+    if os.path.exists(csv1) and os.path.exists(csv2):
+        os.remove(csv1)
+        os.remove(csv2)
+
     for instruction in instruction_list:
         for file in args:
-            image_qa(file, instruction)
+            ans = image_qa(file, instruction, flag, csv1, csv2)
+            score += ans
+        print("next!!!!")
+    
+    print(f'正解数：{score}, 正解率：{score}/{len(args)*len(instruction_list)}')
